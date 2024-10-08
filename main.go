@@ -29,6 +29,8 @@ func main() {
 	kubernetesClient := kubernetes.NewIKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
 	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvironmentVariableKeyEmmaClientId), ClientSecret: os.Getenv(EnvironmentVariableKeyEmmaClientSecret)}
 	apiClient := emma.NewAPIClient(emma.NewConfiguration())
+
+	// TODO: Initialize redisClient and pass to cacheService
 	cacheService := services.NewICacheService(nil, nil)
 
 	log.Println("Initializing cache")
@@ -82,6 +84,10 @@ func main() {
 	}
 
 	cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
+
+	// TODO: Fetch predictions for known weighted nodes via Jarvis API
+	// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
+	// TODO: Fetch latency rates for known weighted nodes via Jarvis API
 
 	log.Println("Initialized cache")
 }
