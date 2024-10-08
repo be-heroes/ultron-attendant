@@ -3,8 +3,9 @@ module github.com/be-heroes/ultron-attendant
 go 1.23.1
 
 require (
-	github.com/be-heroes/ultron v0.0.3
+	github.com/be-heroes/ultron v0.0.5
 	github.com/emma-community/emma-go-sdk v0.0.3
+	github.com/redis/go-redis/v9 v9.6.1
 	k8s.io/apimachinery v0.31.1
 	k8s.io/client-go v0.31.1
 )
@@ -33,7 +34,6 @@ require (
 	github.com/modern-go/reflect2 v1.0.2 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
-	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	golang.org/x/net v0.26.0 // indirect

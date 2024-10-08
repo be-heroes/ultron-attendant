@@ -8,30 +8,48 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/be-heroes/ultron-attendant/internal/kubernetes"
 	ultron "github.com/be-heroes/ultron/pkg"
 	services "github.com/be-heroes/ultron/pkg/services"
 	emma "github.com/emma-community/emma-go-sdk"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
-	EnvironmentVariableKeyKubernetesConfig      = "KUBECONFIG"
-	EnvironmentVariableKeyKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
-	EnvironmentVariableKeyKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
-	EnvironmentVariableKeyEmmaClientId          = "EMMA_CLIENT_ID"
-	EnvironmentVariableKeyEmmaClientSecret      = "EMMA_CLIENT_SECRET"
+	EnvKubernetesConfig      = "KUBECONFIG"
+	EnvKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
+	EnvKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
+	EnvEmmaClientId          = "EMMA_CLIENT_ID"
+	EnvEmmaClientSecret      = "EMMA_CLIENT_SECRET"
 )
 
 func main() {
-	kubernetesConfigPath := os.Getenv(EnvironmentVariableKeyKubernetesConfig)
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvironmentVariableKeyKubernetesServiceHost), os.Getenv(EnvironmentVariableKeyKubernetesServicePort))
+	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
+	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
 	kubernetesClient := kubernetes.NewIKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
-	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvironmentVariableKeyEmmaClientId), ClientSecret: os.Getenv(EnvironmentVariableKeyEmmaClientSecret)}
+	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
 	apiClient := emma.NewAPIClient(emma.NewConfiguration())
 
-	// TODO: Initialize redisClient and pass to cacheService
-	cacheService := services.NewICacheService(nil, nil)
+	var redisClient *redis.Client
+
+	redisServerAddress := os.Getenv(ultron.EnvRedisServerAddress)
+	redisServerDatabase := os.Getenv(ultron.EnvRedisServerDatabase)
+	redisServerDatabaseInt, err := strconv.Atoi(redisServerDatabase)
+	if err != nil {
+		redisServerDatabaseInt = 0
+	}
+
+	if redisServerAddress != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     redisServerAddress,
+			Password: os.Getenv(ultron.EnvRedisServerPassword),
+			DB:       redisServerDatabaseInt,
+		})
+	}
+
+	cacheService := services.NewICacheService(nil, redisClient)
 
 	log.Println("Initializing cache")
 
