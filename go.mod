@@ -3,7 +3,7 @@ module github.com/be-heroes/ultron-attendant
 go 1.23.1
 
 require (
-	github.com/be-heroes/ultron v0.0.5
+	github.com/be-heroes/ultron v0.0.6
 	github.com/emma-community/emma-go-sdk v0.0.3
 	github.com/redis/go-redis/v9 v9.6.1
 	k8s.io/apimachinery v0.31.1
