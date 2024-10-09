@@ -10,8 +10,12 @@ type IAzureClient interface {
 type AzureClient struct {
 }
 
-func NewAzureClient(subscriptionId string) (*AzureClient, error) {
-	_, err := azidentity.NewDefaultAzureCredential(nil)
+func NewAzureClient(subscriptionId string, tenantId string) (*AzureClient, error) {
+	options := &azidentity.DefaultAzureCredentialOptions{
+		TenantID: tenantId,
+	}
+
+	_, err := azidentity.NewDefaultAzureCredential(options)
 	if err != nil {
 		return nil, err
 	}
