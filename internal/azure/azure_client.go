@@ -1,4 +1,4 @@
-package kubernetes
+package azure
 
 type IAzureClient interface {
 }
