@@ -6,6 +6,6 @@ type IGcpClient interface {
 type GcpClient struct {
 }
 
-func NewGCPClient() (*GcpClient, error) {
+func NewGcpClient() (*GcpClient, error) {
 	return &GcpClient{}, nil
 }
