@@ -43,6 +43,11 @@ func main() {
 			Password: os.Getenv(ultron.EnvRedisServerPassword),
 			DB:       redisServerDatabaseInt,
 		})
+
+		_, err := redisClient.Ping(context.Background()).Result()
+		if err != nil {
+			log.Fatalf("Failed to ping redis server with error: %v", err)
+		}
 	}
 
 	var mapper mapper.IMapper = mapper.NewMapper()
