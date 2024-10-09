@@ -120,6 +120,7 @@ func main() {
 
 		cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
 
+		// TODO: Generate Jarvis Golang SDK once OpenAPI contract is finalized
 		// TODO: Fetch predictions for known weighted nodes via Jarvis API
 		// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
 		// TODO: Fetch latency rates for known weighted nodes via Jarvis API
