@@ -11,7 +11,7 @@ type AzureClient struct {
 	credentials *azidentity.DefaultAzureCredential
 }
 
-func NewAzureClient(subscriptionId string, tenantId string) (*AzureClient, error) {
+func NewAzureClient(tenantId string) (*AzureClient, error) {
 	options := &azidentity.DefaultAzureCredentialOptions{
 		TenantID: tenantId,
 	}
