@@ -10,7 +10,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/be-heroes/ultron-attendant/internal/kubernetes"
+	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
 	ultron "github.com/be-heroes/ultron/pkg"
 	services "github.com/be-heroes/ultron/pkg/services"
 	emma "github.com/emma-community/emma-go-sdk"
