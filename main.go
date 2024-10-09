@@ -70,8 +70,6 @@ func main() {
 	auth := context.WithValue(context.Background(), emma.ContextAccessToken, token.GetAccessToken())
 	durableConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
 
-	log.Printf("durableConfigs: %v", durableConfigs)
-
 	if err != nil {
 		log.Fatalf("Failed to fetch durable compute configurations with error: %v", err)
 	}
@@ -83,8 +81,6 @@ func main() {
 	}
 
 	ephemeralConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
-
-	log.Printf("ephemeralConfigs: %v", ephemeralConfigs)
 
 	if err != nil {
 		log.Fatalf("Failed to fetch ephemeral compute configurations with error: %v", err)
@@ -111,4 +107,6 @@ func main() {
 	// TODO: Fetch latency rates for known weighted nodes via Jarvis API
 
 	log.Println("Initialized cache")
+
+	os.Exit(0)
 }
