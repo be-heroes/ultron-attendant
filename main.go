@@ -12,6 +12,8 @@ import (
 
 	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
 	ultron "github.com/be-heroes/ultron/pkg"
+	algorithm "github.com/be-heroes/ultron/pkg/algorithm"
+	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
 	emma "github.com/emma-community/emma-go-sdk"
 	"github.com/redis/go-redis/v9"
@@ -26,15 +28,6 @@ const (
 )
 
 func main() {
-	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
-	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
-	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
-	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
-	if err != nil {
-		log.Fatalf("Failed to create kubernetes client with error: %v", err)
-	}
-
 	var redisClient *redis.Client
 
 	redisServerAddress := os.Getenv(ultron.EnvRedisServerAddress)
@@ -52,7 +45,18 @@ func main() {
 		})
 	}
 
-	cacheService := services.NewICacheService(nil, redisClient)
+	var mapper mapper.IMapper = mapper.NewMapper()
+	var algorithm algorithm.IAlgorithm = algorithm.NewAlgorithm()
+	var cacheService services.ICacheService = services.NewCacheService(nil, redisClient)
+	var computeService services.IComputeService = services.NewComputeService(&algorithm, &cacheService, &mapper)
+	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
+	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
+	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
+	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
+	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper, &computeService)
+	if err != nil {
+		log.Fatalf("Failed to create kubernetes client with error: %v", err)
+	}
 
 	log.Println("Initializing cache")
 

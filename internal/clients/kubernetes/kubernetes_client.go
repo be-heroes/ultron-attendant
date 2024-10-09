@@ -20,13 +20,13 @@ type IKubernetesClient interface {
 
 type KubernetesClient struct {
 	client               *kubernetes.Clientset
-	mapper               mapper.Mapper
-	computeService       services.ComputeService
+	mapper               *mapper.IMapper
+	computeService       *services.IComputeService
 	kubernetesMasterUrl  string
 	kubernetesConfigPath string
 }
 
-func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.Mapper, computeService services.ComputeService) (*KubernetesClient, error) {
+func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper *mapper.IMapper, computeService *services.IComputeService) (*KubernetesClient, error) {
 	var err error
 
 	if kubernetesMasterUrl == "tcp://:" {
@@ -59,7 +59,7 @@ func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string
 	}, nil
 }
 
-func (kc KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
+func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	var wNodes []ultron.WeightedNode
 	nodes, err := kc.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
@@ -67,12 +67,12 @@ func (kc KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	}
 
 	for _, node := range nodes.Items {
-		wNode, err := kc.mapper.MapNodeToWeightedNode(&node)
+		wNode, err := (*kc.mapper).MapNodeToWeightedNode(&node)
 		if err != nil {
 			return nil, err
 		}
 
-		computeConfiguration, err := kc.computeService.MatchWeightedNodeToComputeConfiguration(wNode)
+		computeConfiguration, err := (*kc.computeService).MatchWeightedNodeToComputeConfiguration(wNode)
 		if err != nil {
 			return nil, err
 		}
@@ -81,21 +81,21 @@ func (kc KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 			wNode.Price = float64(*computeConfiguration.Cost.PricePerUnit)
 		}
 
-		medianPrice, err := kc.computeService.CalculateWeightedNodeMedianPrice(wNode)
+		medianPrice, err := (*kc.computeService).CalculateWeightedNodeMedianPrice(wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.MedianPrice = medianPrice
 
-		interuptionRate, err := kc.computeService.ComputeInteruptionRateForWeightedNode(wNode)
+		interuptionRate, err := (*kc.computeService).GetInteruptionRateForWeightedNode(wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.InterruptionRate = *interuptionRate
 
-		latencyRate, err := kc.computeService.ComputeLatencyRateForWeightedNode(wNode)
+		latencyRate, err := (*kc.computeService).GetLatencyRateForWeightedNode(wNode)
 		if err != nil {
 			return nil, err
 		}
