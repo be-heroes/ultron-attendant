@@ -14,11 +14,11 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-type KubernetesClient interface {
+type IKubernetesClient interface {
 	GetWeightedNodes() ([]ultron.WeightedNode, error)
 }
 
-type IKubernetesClient struct {
+type KubernetesClient struct {
 	client               *kubernetes.Clientset
 	mapper               mapper.Mapper
 	computeService       services.ComputeService
@@ -26,7 +26,7 @@ type IKubernetesClient struct {
 	kubernetesConfigPath string
 }
 
-func NewIKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.Mapper, computeService services.ComputeService) (*IKubernetesClient, error) {
+func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.Mapper, computeService services.ComputeService) (*KubernetesClient, error) {
 	var err error
 
 	if kubernetesMasterUrl == "tcp://:" {
@@ -50,7 +50,7 @@ func NewIKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath strin
 		return nil, err
 	}
 
-	return &IKubernetesClient{
+	return &KubernetesClient{
 		client:               clientset,
 		kubernetesMasterUrl:  kubernetesMasterUrl,
 		kubernetesConfigPath: kubernetesConfigPath,
@@ -59,7 +59,7 @@ func NewIKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath strin
 	}, nil
 }
 
-func (kc IKubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
+func (kc KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	var wNodes []ultron.WeightedNode
 	nodes, err := kc.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {

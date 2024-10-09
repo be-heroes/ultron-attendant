@@ -30,7 +30,7 @@ func main() {
 	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
 	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
-	kubernetesClient, err := kubernetes.NewIKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
+	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
 	if err != nil {
 		log.Fatalf("Failed to create kubernetes client with error: %v", err)
 	}
