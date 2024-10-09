@@ -72,7 +72,7 @@ func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 			return nil, err
 		}
 
-		computeConfiguration, err := (*kc.computeService).MatchWeightedNodeToComputeConfiguration(wNode)
+		computeConfiguration, err := (*kc.computeService).MatchWeightedNodeToComputeConfiguration(&wNode)
 		if err != nil {
 			return nil, err
 		}
@@ -81,21 +81,21 @@ func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 			wNode.Price = float64(*computeConfiguration.Cost.PricePerUnit)
 		}
 
-		medianPrice, err := (*kc.computeService).CalculateWeightedNodeMedianPrice(wNode)
+		medianPrice, err := (*kc.computeService).CalculateWeightedNodeMedianPrice(&wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.MedianPrice = medianPrice
 
-		interuptionRate, err := (*kc.computeService).GetInteruptionRateForWeightedNode(wNode)
+		interuptionRate, err := (*kc.computeService).GetInteruptionRateForWeightedNode(&wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.InterruptionRate = *interuptionRate
 
-		latencyRate, err := (*kc.computeService).GetLatencyRateForWeightedNode(wNode)
+		latencyRate, err := (*kc.computeService).GetLatencyRateForWeightedNode(&wNode)
 		if err != nil {
 			return nil, err
 		}
