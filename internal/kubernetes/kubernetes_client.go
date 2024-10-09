@@ -19,29 +19,21 @@ type KubernetesClient interface {
 }
 
 type IKubernetesClient struct {
+	client               *kubernetes.Clientset
 	mapper               mapper.Mapper
 	computeService       services.ComputeService
 	kubernetesMasterUrl  string
 	kubernetesConfigPath string
 }
 
-func NewIKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.Mapper, computeService services.ComputeService) *IKubernetesClient {
-	return &IKubernetesClient{
-		kubernetesMasterUrl:  kubernetesMasterUrl,
-		kubernetesConfigPath: kubernetesConfigPath,
-		computeService:       computeService,
-		mapper:               mapper,
-	}
-}
-
-func (kc IKubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
+func NewIKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.Mapper, computeService services.ComputeService) (*IKubernetesClient, error) {
 	var err error
 
-	if kc.kubernetesMasterUrl == "tcp://:" {
-		kc.kubernetesMasterUrl = ""
+	if kubernetesMasterUrl == "tcp://:" {
+		kubernetesMasterUrl = ""
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags(kc.kubernetesMasterUrl, kc.kubernetesConfigPath)
+	config, err := clientcmd.BuildConfigFromFlags(kubernetesMasterUrl, kubernetesConfigPath)
 	if err != nil {
 		fmt.Println("Falling back to docker Kubernetes API at  https://kubernetes.docker.internal:6443")
 
@@ -58,8 +50,18 @@ func (kc IKubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 		return nil, err
 	}
 
+	return &IKubernetesClient{
+		client:               clientset,
+		kubernetesMasterUrl:  kubernetesMasterUrl,
+		kubernetesConfigPath: kubernetesConfigPath,
+		computeService:       computeService,
+		mapper:               mapper,
+	}, nil
+}
+
+func (kc IKubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	var wNodes []ultron.WeightedNode
-	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+	nodes, err := kc.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}

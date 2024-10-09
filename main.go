@@ -26,11 +26,14 @@ const (
 )
 
 func main() {
+	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
+	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
 	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
-	kubernetesClient := kubernetes.NewIKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
-	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
-	apiClient := emma.NewAPIClient(emma.NewConfiguration())
+	kubernetesClient, err := kubernetes.NewIKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, nil, nil)
+	if err != nil {
+		log.Fatalf("Failed to create kubernetes client with error: %v", err)
+	}
 
 	var redisClient *redis.Client
 
@@ -53,7 +56,7 @@ func main() {
 
 	log.Println("Initializing cache")
 
-	token, resp, err := apiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
+	token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
 	if err != nil {
 		log.Fatalf("Failed to issue access token with error: %v", err)
 	}
@@ -65,7 +68,7 @@ func main() {
 	}
 
 	auth := context.WithValue(context.Background(), emma.ContextAccessToken, token.GetAccessToken())
-	durableConfigs, resp, err := apiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
+	durableConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
 
 	log.Printf("durableConfigs: %v", durableConfigs)
 
@@ -79,7 +82,7 @@ func main() {
 		log.Fatalf("Failed to read durable compute configurations data with error: %v", err)
 	}
 
-	ephemeralConfigs, resp, err := apiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
+	ephemeralConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
 
 	log.Printf("ephemeralConfigs: %v", ephemeralConfigs)
 
