@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
-	github.com/be-heroes/ultron v0.0.8
+	github.com/be-heroes/ultron v0.0.9
 	github.com/emma-community/emma-go-sdk v0.0.3
 	github.com/redis/go-redis/v9 v9.6.1
 	k8s.io/apimachinery v0.31.1
