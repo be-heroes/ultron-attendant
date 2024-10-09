@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
 	ultron "github.com/be-heroes/ultron/pkg"
@@ -20,6 +21,7 @@ import (
 )
 
 const (
+	EnvCacheRefreshInterval  = "ULTRON_ATTENDANT_CACHE_REFRESH_INTERVAL"
 	EnvKubernetesConfig      = "KUBECONFIG"
 	EnvKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
 	EnvKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
@@ -63,59 +65,67 @@ func main() {
 		log.Fatalf("Failed to create kubernetes client with error: %v", err)
 	}
 
-	log.Println("Initializing cache")
-
-	token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
+	cacheRefreshInterval := os.Getenv(EnvCacheRefreshInterval)
+	cacheRefreshIntervalInt, err := strconv.Atoi(cacheRefreshInterval)
 	if err != nil {
-		log.Fatalf("Failed to issue access token with error: %v", err)
+		cacheRefreshIntervalInt = 15
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		_, err := io.ReadAll(resp.Body)
+	for {
+		log.Println("Refreshing cache")
 
-		log.Fatalf("Failed to read access token data with error: %v", err)
+		token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
+		if err != nil {
+			log.Fatalf("Failed to issue access token with error: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			_, err := io.ReadAll(resp.Body)
+
+			log.Fatalf("Failed to read access token data with error: %v", err)
+		}
+
+		auth := context.WithValue(context.Background(), emma.ContextAccessToken, token.GetAccessToken())
+		durableConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
+
+		if err != nil {
+			log.Fatalf("Failed to fetch durable compute configurations with error: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			_, err := io.ReadAll(resp.Body)
+
+			log.Fatalf("Failed to read durable compute configurations data with error: %v", err)
+		}
+
+		ephemeralConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
+
+		if err != nil {
+			log.Fatalf("Failed to fetch ephemeral compute configurations with error: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			_, err := io.ReadAll(resp.Body)
+
+			log.Fatalf("Failed to read ephemeral compute configurations data with error: %v", err)
+		}
+
+		cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, durableConfigs.Content, 0)
+		cacheService.AddCacheItem(ultron.CacheKeySpotVmConfigurations, ephemeralConfigs.Content, 0)
+
+		wNodes, err := kubernetesClient.GetWeightedNodes()
+		if err != nil {
+			log.Fatalf("Failed to get weighted nodes with error: %v", err)
+		}
+
+		cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
+
+		// TODO: Fetch predictions for known weighted nodes via Jarvis API
+		// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
+		// TODO: Fetch latency rates for known weighted nodes via Jarvis API
+
+		log.Println("Cache refreshed")
+
+		time.Sleep(time.Duration(cacheRefreshIntervalInt) * time.Minute)
 	}
-
-	auth := context.WithValue(context.Background(), emma.ContextAccessToken, token.GetAccessToken())
-	durableConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
-
-	if err != nil {
-		log.Fatalf("Failed to fetch durable compute configurations with error: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		_, err := io.ReadAll(resp.Body)
-
-		log.Fatalf("Failed to read durable compute configurations data with error: %v", err)
-	}
-
-	ephemeralConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
-
-	if err != nil {
-		log.Fatalf("Failed to fetch ephemeral compute configurations with error: %v", err)
-	}
-
-	if resp.StatusCode != http.StatusOK {
-		_, err := io.ReadAll(resp.Body)
-
-		log.Fatalf("Failed to read ephemeral compute configurations data with error: %v", err)
-	}
-
-	cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, durableConfigs.Content, 0)
-	cacheService.AddCacheItem(ultron.CacheKeySpotVmConfigurations, ephemeralConfigs.Content, 0)
-
-	wNodes, err := kubernetesClient.GetWeightedNodes()
-	if err != nil {
-		log.Fatalf("Failed to get weighted nodes with error: %v", err)
-	}
-
-	cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
-
-	// TODO: Fetch predictions for known weighted nodes via Jarvis API
-	// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
-	// TODO: Fetch latency rates for known weighted nodes via Jarvis API
-
-	log.Println("Initialized cache")
-
-	os.Exit(0)
 }
