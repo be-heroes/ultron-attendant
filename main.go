@@ -3,13 +3,17 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
-	"log"
 	"math"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
+
+	"github.com/cenkalti/backoff"
+	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 
 	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
@@ -18,112 +22,176 @@ import (
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
 	emma "github.com/emma-community/emma-go-sdk"
-	"github.com/redis/go-redis/v9"
 )
 
-func main() {
-	log.Println("Initializing ultron-attendant")
+type Config struct {
+	RedisServerAddress   string
+	RedisServerDatabase  int
+	EmmaClientId         string
+	EmmaClientSecret     string
+	KubernetesConfigPath string
+	CacheRefreshInterval int
+}
 
-	var redisClient *redis.Client
-
-	redisServerAddress := os.Getenv(ultron.EnvRedisServerAddress)
-	redisServerDatabase := os.Getenv(ultron.EnvRedisServerDatabase)
-	redisServerDatabaseInt, err := strconv.Atoi(redisServerDatabase)
+func LoadConfig() (*Config, error) {
+	redisDatabase, err := strconv.Atoi(os.Getenv(ultron.EnvRedisServerDatabase))
 	if err != nil {
-		redisServerDatabaseInt = 0
+		redisDatabase = 0
+	}
+	refreshInterval, err := strconv.Atoi(os.Getenv(attendant.EnvCacheRefreshInterval))
+	if err != nil {
+		refreshInterval = 15
 	}
 
-	if redisServerAddress != "" {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:     redisServerAddress,
-			Password: os.Getenv(ultron.EnvRedisServerPassword),
-			DB:       redisServerDatabaseInt,
-		})
+	return &Config{
+		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
+		RedisServerDatabase:  redisDatabase,
+		EmmaClientId:         os.Getenv(attendant.EnvEmmaClientId),
+		EmmaClientSecret:     os.Getenv(attendant.EnvEmmaClientSecret),
+		KubernetesConfigPath: os.Getenv(attendant.EnvKubernetesConfig),
+		CacheRefreshInterval: refreshInterval,
+	}, nil
+}
 
-		_, err := redisClient.Ping(context.Background()).Result()
-		if err != nil {
-			log.Fatalf("Failed to ping redis server with error: %v", err)
-		}
+func initializeRedis(config *Config) *redis.Client {
+	if config.RedisServerAddress == "" {
+		return nil
 	}
+	return redis.NewClient(&redis.Options{
+		Addr:     config.RedisServerAddress,
+		Password: os.Getenv(ultron.EnvRedisServerPassword),
+		DB:       config.RedisServerDatabase,
+	})
+}
 
-	var mapper mapper.IMapper = mapper.NewMapper()
-	var algorithm algorithm.IAlgorithm = algorithm.NewAlgorithm()
-	var cacheService services.ICacheService = services.NewCacheService(nil, redisClient)
-	var computeService services.IComputeService = services.NewComputeService(algorithm, cacheService, mapper)
-	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(attendant.EnvEmmaClientId), ClientSecret: os.Getenv(attendant.EnvEmmaClientSecret)}
-	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
-	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
+func initializeKubernetesClient(config *Config, mapper mapper.IMapper, computeService services.IComputeService) (*kubernetes.KubernetesClient, error) {
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
-	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, mapper, computeService)
-	if err != nil {
-		log.Fatalf("Failed to create kubernetes client with error: %v", err)
-	}
+	return kubernetes.NewKubernetesClient(kubernetesMasterUrl, config.KubernetesConfigPath, mapper, computeService)
+}
 
-	cacheRefreshInterval := os.Getenv(attendant.EnvCacheRefreshInterval)
-	cacheRefreshIntervalInt, err := strconv.Atoi(cacheRefreshInterval)
-	if err != nil {
-		cacheRefreshIntervalInt = 15
-	}
-
-	log.Println("Initialized ultron-attendant")
-	log.Println("Starting ultron-attendant")
-
+func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *Config, cacheService services.ICacheService, kubernetesClient *kubernetes.KubernetesClient) {
 	for {
-		log.Println("Refreshing cache")
-
-		token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
-		if err != nil {
-			log.Fatalf("Failed to issue access token with error: %v", err)
+		select {
+		case <-ctx.Done():
+			logger.Info("Shutting down cache refresh loop")
+			return
+		default:
+			logger.Info("Refreshing cache")
+			refreshCache(ctx, logger, emmaApiClient, config, cacheService, kubernetesClient)
+			time.Sleep(time.Duration(config.CacheRefreshInterval) * time.Minute)
 		}
+	}
+}
 
-		if resp.StatusCode != http.StatusOK {
-			_, err := io.ReadAll(resp.Body)
+func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *Config, cacheService services.ICacheService, kubernetesClient *kubernetes.KubernetesClient) {
+	results := make(chan error, 3)
+	emmaAuth := context.WithValue(ctx, emma.ContextAccessToken, getEmmaAccessToken(ctx, logger, emmaApiClient, config))
 
-			log.Fatalf("Failed to read access token data with error: %v", err)
+	// Concurrently fetch configurations
+	go func() {
+		_, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(emmaAuth).Size(math.MaxInt32).Execute()
+		if err != nil || resp.StatusCode != http.StatusOK {
+			results <- fmt.Errorf("failed to fetch durable configs: %v", err)
+		} else {
+			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, nil, 0) // Add the actual data
+			results <- nil
 		}
+	}()
 
-		auth := context.WithValue(context.Background(), emma.ContextAccessToken, token.GetAccessToken())
-		durableConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(auth).Size(math.MaxInt32).Execute()
-
-		if err != nil {
-			log.Fatalf("Failed to fetch durable compute configurations with error: %v", err)
+	go func() {
+		_, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(emmaAuth).Size(math.MaxInt32).Execute()
+		if err != nil || resp.StatusCode != http.StatusOK {
+			results <- fmt.Errorf("failed to fetch spot configs: %v", err)
+		} else {
+			cacheService.AddCacheItem(ultron.CacheKeySpotVmConfigurations, nil, 0) // Add the actual data
+			results <- nil
 		}
+	}()
 
-		if resp.StatusCode != http.StatusOK {
-			_, err := io.ReadAll(resp.Body)
-
-			log.Fatalf("Failed to read durable compute configurations data with error: %v", err)
-		}
-
-		ephemeralConfigs, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Size(math.MaxInt32).Execute()
-
-		if err != nil {
-			log.Fatalf("Failed to fetch ephemeral compute configurations with error: %v", err)
-		}
-
-		if resp.StatusCode != http.StatusOK {
-			_, err := io.ReadAll(resp.Body)
-
-			log.Fatalf("Failed to read ephemeral compute configurations data with error: %v", err)
-		}
-
-		cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, durableConfigs.Content, 0)
-		cacheService.AddCacheItem(ultron.CacheKeySpotVmConfigurations, ephemeralConfigs.Content, 0)
-
+	go func() {
 		wNodes, err := kubernetesClient.GetWeightedNodes()
 		if err != nil {
-			log.Fatalf("Failed to get weighted nodes with error: %v", err)
+			results <- fmt.Errorf("failed to get weighted nodes: %v", err)
+		} else {
+			cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
+			results <- nil
 		}
+	}()
 
-		cacheService.AddCacheItem(ultron.CacheKeyWeightedNodes, wNodes, 0)
-
-		// TODO: Generate Jarvis Golang SDK once OpenAPI contract is finalized
-		// TODO: Fetch predictions for known weighted nodes via Jarvis API
-		// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
-		// TODO: Fetch latency rates for known weighted nodes via Jarvis API
-
-		log.Println("Refreshed cache")
-
-		time.Sleep(time.Duration(cacheRefreshIntervalInt) * time.Minute)
+	for i := 0; i < 3; i++ {
+		if err := <-results; err != nil {
+			logger.Warnw("Error during cache refresh", "error", err)
+		}
 	}
+
+	logger.Info("Cache refresh complete")
+}
+
+func getEmmaAccessToken(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *Config) string {
+	credentials := emma.Credentials{ClientId: config.EmmaClientId, ClientSecret: config.EmmaClientSecret}
+	var token string
+	var err error
+	operation := func() error {
+		tokenResp, _, err := emmaApiClient.AuthenticationAPI.IssueToken(ctx).Credentials(credentials).Execute()
+		if err != nil {
+			return err
+		}
+		token = tokenResp.GetAccessToken()
+		return nil
+	}
+	backoffStrategy := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
+	if err = backoff.Retry(operation, backoffStrategy); err != nil {
+		logger.Fatalw("Failed to obtain Emma API access token", "error", err)
+	}
+	return token
+}
+
+func main() {
+	// Initialize logger
+	logger, _ := zap.NewProduction()
+	defer logger.Sync()
+	sugar := logger.Sugar()
+	sugar.Info("Initializing ultron-attendant")
+
+	// Load configuration
+	config, err := LoadConfig()
+	if err != nil {
+		sugar.Fatalw("Failed to load configuration", "error", err)
+	}
+
+	// Initialize Redis client
+	redisClient := initializeRedis(config)
+	if redisClient != nil {
+		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
+			sugar.Fatalw("Failed to connect to Redis", "error", err)
+		}
+	}
+
+	// Initialize Mapper and Compute Service
+	mapperInstance := mapper.NewMapper()
+	algorithmInstance := algorithm.NewAlgorithm()
+	cacheService := services.NewCacheService(nil, redisClient)
+	computeService := services.NewComputeService(algorithmInstance, cacheService, mapperInstance)
+
+	// Initialize Kubernetes client
+	kubernetesClient, err := initializeKubernetesClient(config, mapperInstance, computeService)
+	if err != nil {
+		sugar.Fatalw("Failed to initialize Kubernetes client", "error", err)
+	}
+
+	// Initialize Emma API client
+	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
+
+	// Set up graceful shutdown
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	// Start the cache refresh loop
+	go startCacheRefreshLoop(ctx, sugar, emmaApiClient, config, cacheService, kubernetesClient)
+
+	// Wait for shutdown signal
+	<-ctx.Done()
+	sugar.Info("Shutdown signal received, cleaning up...")
+	stop()
+	sugar.Info("Ultron-attendant shut down gracefully")
 }
