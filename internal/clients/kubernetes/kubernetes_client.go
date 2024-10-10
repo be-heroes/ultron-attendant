@@ -20,13 +20,13 @@ type IKubernetesClient interface {
 
 type KubernetesClient struct {
 	config               *rest.Config
-	mapper               *mapper.IMapper
-	computeService       *services.IComputeService
+	mapper               mapper.IMapper
+	computeService       services.IComputeService
 	kubernetesMasterUrl  string
 	kubernetesConfigPath string
 }
 
-func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper *mapper.IMapper, computeService *services.IComputeService) (*KubernetesClient, error) {
+func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.IMapper, computeService services.IComputeService) (*KubernetesClient, error) {
 	var err error
 
 	if kubernetesMasterUrl == "tcp://:" {
@@ -68,12 +68,12 @@ func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	}
 
 	for _, node := range nodes.Items {
-		wNode, err := (*kc.mapper).MapNodeToWeightedNode(&node)
+		wNode, err := kc.mapper.MapNodeToWeightedNode(&node)
 		if err != nil {
 			return nil, err
 		}
 
-		computeConfiguration, err := (*kc.computeService).MatchWeightedNodeToComputeConfiguration(&wNode)
+		computeConfiguration, err := kc.computeService.MatchWeightedNodeToComputeConfiguration(&wNode)
 		if err != nil {
 			return nil, err
 		}
@@ -82,21 +82,21 @@ func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 			wNode.Price = float64(*computeConfiguration.Cost.PricePerUnit)
 		}
 
-		medianPrice, err := (*kc.computeService).CalculateWeightedNodeMedianPrice(&wNode)
+		medianPrice, err := kc.computeService.CalculateWeightedNodeMedianPrice(&wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.MedianPrice = medianPrice
 
-		interuptionRate, err := (*kc.computeService).GetInteruptionRateForWeightedNode(&wNode)
+		interuptionRate, err := kc.computeService.GetInteruptionRateForWeightedNode(&wNode)
 		if err != nil {
 			return nil, err
 		}
 
 		wNode.InterruptionRate = *interuptionRate
 
-		latencyRate, err := (*kc.computeService).GetLatencyRateForWeightedNode(&wNode)
+		latencyRate, err := kc.computeService.GetLatencyRateForWeightedNode(&wNode)
 		if err != nil {
 			return nil, err
 		}

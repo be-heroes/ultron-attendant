@@ -49,12 +49,12 @@ func main() {
 	var mapper mapper.IMapper = mapper.NewMapper()
 	var algorithm algorithm.IAlgorithm = algorithm.NewAlgorithm()
 	var cacheService services.ICacheService = services.NewCacheService(nil, redisClient)
-	var computeService services.IComputeService = services.NewComputeService(&algorithm, &cacheService, &mapper)
+	var computeService services.IComputeService = services.NewComputeService(algorithm, cacheService, mapper)
 	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(attendant.EnvEmmaClientId), ClientSecret: os.Getenv(attendant.EnvEmmaClientSecret)}
 	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
 	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
-	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper, &computeService)
+	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, mapper, computeService)
 	if err != nil {
 		log.Fatalf("Failed to create kubernetes client with error: %v", err)
 	}
