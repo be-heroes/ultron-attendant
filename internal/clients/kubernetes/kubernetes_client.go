@@ -19,7 +19,7 @@ type IKubernetesClient interface {
 }
 
 type KubernetesClient struct {
-	client               *kubernetes.Clientset
+	config               *rest.Config
 	mapper               *mapper.IMapper
 	computeService       *services.IComputeService
 	kubernetesMasterUrl  string
@@ -45,13 +45,8 @@ func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string
 		}
 	}
 
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, err
-	}
-
 	return &KubernetesClient{
-		client:               clientset,
+		config:               config,
 		kubernetesMasterUrl:  kubernetesMasterUrl,
 		kubernetesConfigPath: kubernetesConfigPath,
 		computeService:       computeService,
@@ -61,7 +56,13 @@ func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string
 
 func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 	var wNodes []ultron.WeightedNode
-	nodes, err := kc.client.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
+
+	clientset, err := kubernetes.NewForConfig(kc.config)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := clientset.CoreV1().Nodes().List(context.TODO(), metav1.ListOptions{})
 	if err != nil {
 		return nil, err
 	}
