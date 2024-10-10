@@ -66,6 +66,7 @@ func main() {
 	}
 
 	log.Println("Initialized ultron-attendant")
+	log.Println("Starting ultron-attendant")
 
 	for {
 		log.Println("Refreshing cache")
