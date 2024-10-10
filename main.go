@@ -22,7 +22,7 @@ import (
 )
 
 func main() {
-	log.Println("Initializing redis client")
+	log.Println("Initializing ultron-attendant")
 
 	var redisClient *redis.Client
 
@@ -46,9 +46,6 @@ func main() {
 		}
 	}
 
-	log.Println("Initialized redis client")
-	log.Println("Initializing dependencies")
-
 	var mapper mapper.IMapper = mapper.NewMapper()
 	var algorithm algorithm.IAlgorithm = algorithm.NewAlgorithm()
 	var cacheService services.ICacheService = services.NewCacheService(nil, redisClient)
@@ -68,10 +65,10 @@ func main() {
 		cacheRefreshIntervalInt = 15
 	}
 
-	log.Println("Initialized dependencies")
+	log.Println("Initialized ultron-attendant")
 
 	for {
-		log.Println("Initializing cache")
+		log.Println("Refreshing cache")
 
 		token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
 		if err != nil {
@@ -124,7 +121,7 @@ func main() {
 		// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
 		// TODO: Fetch latency rates for known weighted nodes via Jarvis API
 
-		log.Println("Initialized cache")
+		log.Println("Refreshed cache")
 
 		time.Sleep(time.Duration(cacheRefreshIntervalInt) * time.Minute)
 	}
