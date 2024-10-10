@@ -87,7 +87,6 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	results := make(chan error, 3)
 	emmaAuth := context.WithValue(ctx, emma.ContextAccessToken, getEmmaAccessToken(ctx, logger, emmaApiClient, config))
 
-	// Concurrently fetch configurations
 	go func() {
 		_, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(emmaAuth).Size(math.MaxInt32).Execute()
 		if err != nil || resp.StatusCode != http.StatusOK {
@@ -147,19 +146,16 @@ func getEmmaAccessToken(ctx context.Context, logger *zap.SugaredLogger, emmaApiC
 }
 
 func main() {
-	// Initialize logger
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
 	sugar := logger.Sugar()
 	sugar.Info("Initializing ultron-attendant")
 
-	// Load configuration
 	config, err := LoadConfig()
 	if err != nil {
 		sugar.Fatalw("Failed to load configuration", "error", err)
 	}
 
-	// Initialize Redis client
 	redisClient := initializeRedis(config)
 	if redisClient != nil {
 		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
@@ -167,29 +163,23 @@ func main() {
 		}
 	}
 
-	// Initialize Mapper and Compute Service
 	mapperInstance := mapper.NewMapper()
 	algorithmInstance := algorithm.NewAlgorithm()
 	cacheService := services.NewCacheService(nil, redisClient)
 	computeService := services.NewComputeService(algorithmInstance, cacheService, mapperInstance)
 
-	// Initialize Kubernetes client
 	kubernetesClient, err := initializeKubernetesClient(config, mapperInstance, computeService)
 	if err != nil {
 		sugar.Fatalw("Failed to initialize Kubernetes client", "error", err)
 	}
 
-	// Initialize Emma API client
 	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
 
-	// Set up graceful shutdown
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// Start the cache refresh loop
 	go startCacheRefreshLoop(ctx, sugar, emmaApiClient, config, cacheService, kubernetesClient)
 
-	// Wait for shutdown signal
 	<-ctx.Done()
 	sugar.Info("Shutdown signal received, cleaning up...")
 	stop()
