@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 )
 
+// TODO: Finish AWS client
 type IAwsClient interface {
 }
 

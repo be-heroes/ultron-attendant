@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
+	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	algorithm "github.com/be-heroes/ultron/pkg/algorithm"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
@@ -20,16 +21,9 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-const (
-	EnvCacheRefreshInterval  = "ULTRON_ATTENDANT_CACHE_REFRESH_INTERVAL"
-	EnvKubernetesConfig      = "KUBECONFIG"
-	EnvKubernetesServiceHost = "KUBERNETES_SERVICE_HOST"
-	EnvKubernetesServicePort = "KUBERNETES_SERVICE_PORT"
-	EnvEmmaClientId          = "EMMA_CLIENT_ID"
-	EnvEmmaClientSecret      = "EMMA_CLIENT_SECRET"
-)
-
 func main() {
+	log.Println("Initializing redis client")
+
 	var redisClient *redis.Client
 
 	redisServerAddress := os.Getenv(ultron.EnvRedisServerAddress)
@@ -52,27 +46,32 @@ func main() {
 		}
 	}
 
+	log.Println("Initialized redis client")
+	log.Println("Initializing dependencies")
+
 	var mapper mapper.IMapper = mapper.NewMapper()
 	var algorithm algorithm.IAlgorithm = algorithm.NewAlgorithm()
 	var cacheService services.ICacheService = services.NewCacheService(nil, redisClient)
 	var computeService services.IComputeService = services.NewComputeService(&algorithm, &cacheService, &mapper)
-	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(EnvEmmaClientId), ClientSecret: os.Getenv(EnvEmmaClientSecret)}
+	emmaApiCredentials := emma.Credentials{ClientId: os.Getenv(attendant.EnvEmmaClientId), ClientSecret: os.Getenv(attendant.EnvEmmaClientSecret)}
 	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
-	kubernetesConfigPath := os.Getenv(EnvKubernetesConfig)
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(EnvKubernetesServiceHost), os.Getenv(EnvKubernetesServicePort))
+	kubernetesConfigPath := os.Getenv(attendant.EnvKubernetesConfig)
+	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
 	kubernetesClient, err := kubernetes.NewKubernetesClient(kubernetesMasterUrl, kubernetesConfigPath, &mapper, &computeService)
 	if err != nil {
 		log.Fatalf("Failed to create kubernetes client with error: %v", err)
 	}
 
-	cacheRefreshInterval := os.Getenv(EnvCacheRefreshInterval)
+	cacheRefreshInterval := os.Getenv(attendant.EnvCacheRefreshInterval)
 	cacheRefreshIntervalInt, err := strconv.Atoi(cacheRefreshInterval)
 	if err != nil {
 		cacheRefreshIntervalInt = 15
 	}
 
+	log.Println("Initialized dependencies")
+
 	for {
-		log.Println("Refreshing cache")
+		log.Println("Initializing cache")
 
 		token, resp, err := emmaApiClient.AuthenticationAPI.IssueToken(context.Background()).Credentials(emmaApiCredentials).Execute()
 		if err != nil {
@@ -125,7 +124,7 @@ func main() {
 		// TODO: Fetch interuption rates for known weighted nodes via Jarvis API
 		// TODO: Fetch latency rates for known weighted nodes via Jarvis API
 
-		log.Println("Cache refreshed")
+		log.Println("Initialized cache")
 
 		time.Sleep(time.Duration(cacheRefreshIntervalInt) * time.Minute)
 	}

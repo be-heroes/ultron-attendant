@@ -2,6 +2,7 @@ package gcp
 
 import "os"
 
+// TODO: Finish Gcp client
 type IGcpClient interface {
 }
 

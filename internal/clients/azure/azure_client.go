@@ -4,6 +4,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 )
 
+// TODO: Finish Azure client
 type IAzureClient interface {
 }
 
