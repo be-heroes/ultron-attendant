@@ -1,6 +1,6 @@
 # Ultron Attendant
 
-Ultron Attendant is a tool designed to fetch cloud resources data for Ultron. It integrates with various APIs, including émma and Redis, to provide real-time data and caching capabilities to Ultron. The application fetches and processes weighted nodes from Kubernetes clusters, calculates median prices, loads interruption rates / latency rates and caches this information for quick access by Ultron.
+Ultron Attendant is a tool designed to fetch cloud resources data for Ultron. It integrates with various APIs, including émma and Redis, to provide real-time data and caching capabilities to Ultron. The application processes weighted nodes from Kubernetes clusters, calculates median prices, loads interruption rates / latency rates and caches this information for quick access by Ultron.
 
 Ultron Attendant is built with Go and can be run as a standalone application or within a Docker container.
 
