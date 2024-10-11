@@ -3,30 +3,27 @@ package kubernetes
 import (
 	"context"
 	"fmt"
+	"strconv"
 
-	ultron "github.com/be-heroes/ultron/pkg"
-	mapper "github.com/be-heroes/ultron/pkg/mapper"
-	services "github.com/be-heroes/ultron/pkg/services"
-
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	metricsclient "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 type IKubernetesClient interface {
-	GetWeightedNodes() ([]ultron.WeightedNode, error)
+	GetNodes() ([]corev1.Node, error)
+	GetNodeMetrics() (map[string]map[string]string, error)
+	GetPodMetrics() (map[string]map[string]string, error)
 }
 
 type KubernetesClient struct {
-	config               *rest.Config
-	mapper               mapper.IMapper
-	computeService       services.IComputeService
-	kubernetesMasterUrl  string
-	kubernetesConfigPath string
+	config *rest.Config
 }
 
-func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string, mapper mapper.IMapper, computeService services.IComputeService) (*KubernetesClient, error) {
+func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string) (*KubernetesClient, error) {
 	var err error
 
 	if kubernetesMasterUrl == "tcp://:" {
@@ -46,17 +43,11 @@ func NewKubernetesClient(kubernetesMasterUrl string, kubernetesConfigPath string
 	}
 
 	return &KubernetesClient{
-		config:               config,
-		kubernetesMasterUrl:  kubernetesMasterUrl,
-		kubernetesConfigPath: kubernetesConfigPath,
-		computeService:       computeService,
-		mapper:               mapper,
+		config: config,
 	}, nil
 }
 
-func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
-	var wNodes []ultron.WeightedNode
-
+func (kc *KubernetesClient) GetNodes() ([]corev1.Node, error) {
 	clientset, err := kubernetes.NewForConfig(kc.config)
 	if err != nil {
 		return nil, err
@@ -67,44 +58,76 @@ func (kc *KubernetesClient) GetWeightedNodes() ([]ultron.WeightedNode, error) {
 		return nil, err
 	}
 
-	for _, node := range nodes.Items {
-		wNode, err := kc.mapper.MapNodeToWeightedNode(&node)
-		if err != nil {
-			return nil, err
-		}
+	return nodes.Items, nil
+}
 
-		computeConfiguration, err := kc.computeService.MatchWeightedNodeToComputeConfiguration(&wNode)
-		if err != nil {
-			return nil, err
-		}
-
-		if computeConfiguration != nil && computeConfiguration.Cost != nil && computeConfiguration.Cost.PricePerUnit != nil {
-			wNode.Price = float64(*computeConfiguration.Cost.PricePerUnit)
-		}
-
-		medianPrice, err := kc.computeService.CalculateWeightedNodeMedianPrice(&wNode)
-		if err != nil {
-			return nil, err
-		}
-
-		wNode.MedianPrice = medianPrice
-
-		interuptionRate, err := kc.computeService.GetInteruptionRateForWeightedNode(&wNode)
-		if err != nil {
-			return nil, err
-		}
-
-		wNode.InterruptionRate = *interuptionRate
-
-		latencyRate, err := kc.computeService.GetLatencyRateForWeightedNode(&wNode)
-		if err != nil {
-			return nil, err
-		}
-
-		wNode.LatencyRate = *latencyRate
-
-		wNodes = append(wNodes, wNode)
+func (k *KubernetesClient) GetNodeMetrics() (map[string]map[string]string, error) {
+	metricsClient, err := metricsclient.NewForConfig(k.config)
+	if err != nil {
+		return nil, err
 	}
 
-	return wNodes, nil
+	nodeMetrics, err := metricsClient.MetricsV1beta1().NodeMetricses().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	metrics := make(map[string]map[string]string)
+	for _, nodeMetric := range nodeMetrics.Items {
+		cpuUsage := nodeMetric.Usage["cpu"]
+		memoryUsage := nodeMetric.Usage["memory"]
+
+		metrics[nodeMetric.Name] = map[string]string{
+			"cpuUsage":    cpuUsage.AsDec().String(),
+			"memoryUsage": memoryUsage.AsDec().String(),
+		}
+	}
+
+	return metrics, nil
+}
+
+func (k *KubernetesClient) GetPodMetrics() (map[string]map[string]string, error) {
+	clientset, err := kubernetes.NewForConfig(k.config)
+	if err != nil {
+		return nil, err
+	}
+
+	namespaces, err := clientset.CoreV1().Namespaces().List(context.TODO(), metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	metricsClient, err := metricsclient.NewForConfig(k.config)
+	if err != nil {
+		return nil, err
+	}
+
+	metrics := make(map[string]map[string]string)
+	for _, namespace := range namespaces.Items {
+		podMetricsList, err := metricsClient.MetricsV1beta1().PodMetricses(namespace.Name).List(context.TODO(), metav1.ListOptions{})
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, podMetric := range podMetricsList.Items {
+			cpuTotal := int64(0)
+			memoryTotal := int64(0)
+
+			for _, container := range podMetric.Containers {
+				cpuUsage := container.Usage[corev1.ResourceCPU]
+				memUsage := container.Usage[corev1.ResourceMemory]
+
+				cpuTotal += cpuUsage.MilliValue()
+				memoryTotal += memUsage.Value()
+			}
+
+			metrics[podMetric.Name] = map[string]string{
+				"cpuTotal":    strconv.FormatInt(cpuTotal, 10),
+				"memoryTotal": strconv.FormatInt(memoryTotal, 10),
+			}
+		}
+	}
+
+	return metrics, nil
 }
