@@ -1,5 +1,6 @@
 package jarvis
 
+// TODO: Finish Jarvis client
 type IJarvisClient interface {
 }
 
