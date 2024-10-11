@@ -6,7 +6,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/azidentity v1.8.0
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
-	github.com/be-heroes/ultron v0.1.6
+	github.com/be-heroes/ultron v0.2.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/emma-community/emma-go-sdk v0.0.3
 	go.uber.org/zap v1.27.0
