@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -33,7 +32,7 @@ func main() {
 		sugar.Fatalw("Failed to load configuration", "error", err)
 	}
 
-	redisClient := ultron.InitializeRedisClient(config.RedisServerAddress, os.Getenv(ultron.EnvRedisServerPassword), config.RedisServerDatabase)
+	redisClient := ultron.InitializeRedisClient(config.RedisServerAddress, config.RedisServerPassword, config.RedisServerDatabase)
 	if redisClient != nil {
 		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
 			sugar.Fatalw("Failed to connect to Redis", "error", err)
