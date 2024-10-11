@@ -44,7 +44,7 @@ func main() {
 	algorithmInstance := algorithm.NewAlgorithm()
 	cacheService := services.NewCacheService(nil, redisClient)
 	computeService := services.NewComputeService(algorithmInstance, cacheService, mapperInstance)
-	kubernetesClient, err := attendant.InitializeKubernetesClient(config)
+	kubernetesClient, err := attendant.InitializeKubernetesServiceFromConfig(config)
 	if err != nil {
 		sugar.Fatalw("Failed to initialize Kubernetes client", "error", err)
 	}

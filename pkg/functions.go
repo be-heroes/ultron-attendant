@@ -26,17 +26,16 @@ func LoadConfig() (*Config, error) {
 		EmmaClientId:         os.Getenv(EnvEmmaClientId),
 		EmmaClientSecret:     os.Getenv(EnvEmmaClientSecret),
 		KubernetesConfigPath: os.Getenv(ultron.EnvKubernetesConfig),
+		KubernetesMasterURL:  fmt.Sprintf("tcp://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort)),
 		CacheRefreshInterval: refreshInterval,
 	}, nil
 }
 
-func InitializeKubernetesClient(config *Config) (kubernetesClient services.IKubernetesService, err error) {
-	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(ultron.EnvKubernetesServiceHost), os.Getenv(ultron.EnvKubernetesServicePort))
-
-	kubernetesClient, err = services.NewKubernetesClient(kubernetesMasterUrl, config.KubernetesConfigPath)
+func InitializeKubernetesServiceFromConfig(config *Config) (kubernetesService services.IKubernetesService, err error) {
+	kubernetesService, err = services.NewKubernetesClient(config.KubernetesMasterURL, config.KubernetesConfigPath)
 	if err != nil {
 		return nil, err
 	}
 
-	return kubernetesClient, nil
+	return kubernetesService, nil
 }
