@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -12,7 +13,6 @@ import (
 	"github.com/cenkalti/backoff"
 	"go.uber.org/zap"
 
-	"github.com/be-heroes/ultron-attendant/internal/clients/kubernetes"
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	algorithm "github.com/be-heroes/ultron/pkg/algorithm"
@@ -33,7 +33,7 @@ func main() {
 		sugar.Fatalw("Failed to load configuration", "error", err)
 	}
 
-	redisClient := attendant.InitializeRedisClient(config)
+	redisClient := ultron.InitializeRedisClient(config.RedisServerAddress, os.Getenv(ultron.EnvRedisServerPassword), config.RedisServerDatabase)
 	if redisClient != nil {
 		if _, err := redisClient.Ping(context.Background()).Result(); err != nil {
 			sugar.Fatalw("Failed to connect to Redis", "error", err)
@@ -65,7 +65,7 @@ func main() {
 	sugar.Info("Ultron-attendant shut down gracefully")
 }
 
-func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesClient kubernetes.IKubernetesClient, computeService services.IComputeService, mapper mapper.IMapper) {
+func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -75,14 +75,14 @@ func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaA
 		default:
 			logger.Info("Refreshing cache")
 
-			refreshCache(ctx, logger, emmaApiClient, config, cacheService, kubernetesClient, computeService, mapper)
+			refreshCache(ctx, logger, emmaApiClient, config, cacheService, kubernetesService, computeService, mapper)
 
 			time.Sleep(time.Duration(config.CacheRefreshInterval) * time.Minute)
 		}
 	}
 }
 
-func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesClient kubernetes.IKubernetesClient, computeService services.IComputeService, mapper mapper.IMapper) {
+func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	results := make(chan error, 3)
 	emmaAuth := context.WithValue(ctx, emma.ContextAccessToken, getEmmaAccessToken(ctx, logger, emmaApiClient, config))
 
@@ -107,7 +107,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	}()
 
 	go func() {
-		nodes, err := kubernetesClient.GetNodes()
+		nodes, err := kubernetesService.GetNodes()
 		if err != nil {
 			results <- fmt.Errorf("failed to get nodes: %v", err)
 		} else {
