@@ -22,6 +22,7 @@ func LoadConfig() (*Config, error) {
 
 	return &Config{
 		RedisServerAddress:   os.Getenv(ultron.EnvRedisServerAddress),
+		RedisServerPassword:  os.Getenv(ultron.EnvRedisServerPassword),
 		RedisServerDatabase:  redisDatabase,
 		EmmaClientId:         os.Getenv(EnvEmmaClientId),
 		EmmaClientSecret:     os.Getenv(EnvEmmaClientSecret),
