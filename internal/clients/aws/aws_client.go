@@ -12,7 +12,7 @@ import (
 )
 
 type IAwsClient interface {
-	GetNodePriceData(instanceType, region string) error
+	GetComputeCost(ctx context.Context, instanceType, region string) error
 }
 
 type IPricingAPI interface {
@@ -44,7 +44,7 @@ func NewAwsClient(region string) (*AwsClient, error) {
 	}, nil
 }
 
-func (c *AwsClient) GetNodePriceData(instanceType, region string) error {
+func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region string) error {
 	input := &pricing.GetProductsInput{
 		ServiceCode: aws.String("AmazonEC2"),
 		// TODO: Validate the filters
@@ -80,7 +80,7 @@ func (c *AwsClient) GetNodePriceData(instanceType, region string) error {
 	paginator := pricing.NewGetProductsPaginator(c.PricingClient, input)
 
 	for paginator.HasMorePages() {
-		output, err := paginator.NextPage(context.TODO())
+		output, err := paginator.NextPage(ctx)
 		if err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func (c *AwsClient) GetNodePriceData(instanceType, region string) error {
 					}
 					priceUSD, _ := pricePerUnit["USD"].(string)
 
-					// TODO: Map this to a struct and return an array of structs
+					// TODO: Map this to ultron.ComputeCost struct
 					fmt.Printf("Instance Type: %s, Location: %s, Price per Hour: %s USD\n", instanceTypeAttr, location, priceUSD)
 				}
 			}
