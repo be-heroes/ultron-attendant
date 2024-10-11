@@ -48,6 +48,7 @@ func main() {
 		sugar.Fatalw("Failed to initialize Kubernetes client", "error", err)
 	}
 
+	// TODO: Move to emma_client wrapper
 	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -83,6 +84,7 @@ func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaA
 
 func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	results := make(chan error, 3)
+	// TODO: Move to emma_client wrapper
 	emmaAuth := context.WithValue(ctx, emma.ContextAccessToken, getEmmaAccessToken(ctx, logger, emmaApiClient, config))
 
 	go func() {
@@ -166,6 +168,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	logger.Info("Cache refresh complete")
 }
 
+// TODO: Move to emma_client wrapper
 func getEmmaAccessToken(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config) string {
 	credentials := emma.Credentials{ClientId: config.EmmaClientId, ClientSecret: config.EmmaClientSecret}
 	var token string
