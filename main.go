@@ -38,6 +38,7 @@ func LoadConfig() (*Config, error) {
 	if err != nil {
 		redisDatabase = 0
 	}
+
 	refreshInterval, err := strconv.Atoi(os.Getenv(attendant.EnvCacheRefreshInterval))
 	if err != nil {
 		refreshInterval = 15
@@ -57,6 +58,7 @@ func initializeRedis(config *Config) *redis.Client {
 	if config.RedisServerAddress == "" {
 		return nil
 	}
+
 	return redis.NewClient(&redis.Options{
 		Addr:     config.RedisServerAddress,
 		Password: os.Getenv(ultron.EnvRedisServerPassword),
@@ -66,6 +68,7 @@ func initializeRedis(config *Config) *redis.Client {
 
 func initializeKubernetesClient(config *Config, mapper mapper.IMapper, computeService services.IComputeService) (*kubernetes.KubernetesClient, error) {
 	kubernetesMasterUrl := fmt.Sprintf("tcp://%s:%s", os.Getenv(attendant.EnvKubernetesServiceHost), os.Getenv(attendant.EnvKubernetesServicePort))
+
 	return kubernetes.NewKubernetesClient(kubernetesMasterUrl, config.KubernetesConfigPath, mapper, computeService)
 }
 
@@ -74,10 +77,13 @@ func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaA
 		select {
 		case <-ctx.Done():
 			logger.Info("Shutting down cache refresh loop")
+
 			return
 		default:
 			logger.Info("Refreshing cache")
+
 			refreshCache(ctx, logger, emmaApiClient, config, cacheService, kubernetesClient)
+
 			time.Sleep(time.Duration(config.CacheRefreshInterval) * time.Minute)
 		}
 	}
@@ -130,24 +136,31 @@ func getEmmaAccessToken(ctx context.Context, logger *zap.SugaredLogger, emmaApiC
 	credentials := emma.Credentials{ClientId: config.EmmaClientId, ClientSecret: config.EmmaClientSecret}
 	var token string
 	var err error
+
 	operation := func() error {
 		tokenResp, _, err := emmaApiClient.AuthenticationAPI.IssueToken(ctx).Credentials(credentials).Execute()
 		if err != nil {
 			return err
 		}
+
 		token = tokenResp.GetAccessToken()
+
 		return nil
 	}
+
 	backoffStrategy := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
+
 	if err = backoff.Retry(operation, backoffStrategy); err != nil {
 		logger.Fatalw("Failed to obtain Emma API access token", "error", err)
 	}
+
 	return token
 }
 
 func main() {
 	logger, _ := zap.NewProduction()
 	defer logger.Sync()
+
 	sugar := logger.Sugar()
 	sugar.Info("Initializing ultron-attendant")
 
@@ -181,7 +194,10 @@ func main() {
 	go startCacheRefreshLoop(ctx, sugar, emmaApiClient, config, cacheService, kubernetesClient)
 
 	<-ctx.Done()
+
 	sugar.Info("Shutdown signal received, cleaning up...")
+
 	stop()
+
 	sugar.Info("Ultron-attendant shut down gracefully")
 }
