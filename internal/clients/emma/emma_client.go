@@ -89,7 +89,7 @@ func (ec *EmmaClient) GetEphemeralComputeConfigurations(ctx context.Context) (*[
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
 
-		return nil, fmt.Errorf("failed to fetch durable configs: %v", string(body))
+		return nil, fmt.Errorf("failed to fetch ephemeral configs: %v", string(body))
 	}
 
 	ephemeralConfigs, resp, err := ec.client.ComputeInstancesConfigurationsAPI.GetSpotConfigs(auth).Execute()
