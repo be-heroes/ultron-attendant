@@ -108,7 +108,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	}()
 
 	go func() {
-		nodes, err := kubernetesService.GetNodes()
+		nodes, err := kubernetesService.GetNodes(context.Background())
 		if err != nil {
 			results <- fmt.Errorf("failed to get nodes: %v", err)
 		} else {

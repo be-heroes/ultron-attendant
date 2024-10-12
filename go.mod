@@ -6,7 +6,7 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
 	github.com/aws/aws-sdk-go-v2/service/pricing v1.32.2
-	github.com/be-heroes/ultron v0.2.0
+	github.com/be-heroes/ultron v0.2.2
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/emma-community/emma-go-sdk v0.0.3
 	github.com/stretchr/testify v1.9.0
