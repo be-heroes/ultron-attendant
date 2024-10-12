@@ -83,7 +83,7 @@ func TestGetNodePriceData_Success(t *testing.T) {
 		PricingClient: mockPricingClient,
 	}
 
-	err := client.GetComputeCost(context.Background(), "t2.micro", "US East (N. Virginia)")
+	_, err := client.GetComputeCost(context.Background(), "t2.micro", "US East (N. Virginia)")
 	assert.NoError(t, err)
 
 	mockPricingClient.AssertExpectations(t)
@@ -99,7 +99,7 @@ func TestGetNodePriceData_Error(t *testing.T) {
 		PricingClient: mockPricingClient,
 	}
 
-	err := client.GetComputeCost(context.Background(), "t2.micro", "US East (N. Virginia)")
+	_, err := client.GetComputeCost(context.Background(), "t2.micro", "US East (N. Virginia)")
 	assert.Error(t, err)
 	assert.EqualError(t, err, "AWS Pricing API error")
 

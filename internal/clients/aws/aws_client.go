@@ -3,16 +3,17 @@ package aws
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsConfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/pricing"
 	pricingTypes "github.com/aws/aws-sdk-go-v2/service/pricing/types"
+	ultron "github.com/be-heroes/ultron/pkg"
 )
 
 type IAwsClient interface {
-	GetComputeCost(ctx context.Context, instanceType, region string) error
+	GetComputeCost(ctx context.Context, instanceType, region string) (*[]ultron.ComputeCost, error)
 }
 
 type IPricingAPI interface {
@@ -44,10 +45,9 @@ func NewAwsClient(region string) (*AwsClient, error) {
 	}, nil
 }
 
-func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region string) error {
+func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region string) (*[]ultron.ComputeCost, error) {
 	input := &pricing.GetProductsInput{
 		ServiceCode: aws.String("AmazonEC2"),
-		// TODO: Validate the filters
 		Filters: []pricingTypes.Filter{
 			{
 				Type:  pricingTypes.FilterTypeTermMatch,
@@ -77,33 +77,23 @@ func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region str
 		},
 	}
 
+	var results []ultron.ComputeCost
+
 	paginator := pricing.NewGetProductsPaginator(c.PricingClient, input)
 
 	for paginator.HasMorePages() {
 		output, err := paginator.NextPage(ctx)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for _, priceItem := range output.PriceList {
 			var priceMap map[string]interface{}
 			if err := json.Unmarshal([]byte(priceItem), &priceMap); err != nil {
-				return err
+				return nil, err
 			}
 
-			// TODO: Validate attributes
-			product, ok := priceMap["product"].(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			attributes, ok := product["attributes"].(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			instanceTypeAttr, _ := attributes["instanceType"].(string)
-			location, _ := attributes["location"].(string)
+			// TODO: Validate mapping logic
 			terms, ok := priceMap["terms"].(map[string]interface{})
 			if !ok {
 				continue
@@ -135,13 +125,23 @@ func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region str
 						continue
 					}
 					priceUSD, _ := pricePerUnit["USD"].(string)
+					priceUSDValue, err := strconv.ParseFloat(priceUSD, 32)
+					if err != nil {
+						return nil, err
+					}
+					priceUSD32 := float32(priceUSDValue)
+					priceCurrency := "USD"
+					priceUnit := "MONTHLY"
 
-					// TODO: Map this to ultron.ComputeCost struct
-					fmt.Printf("Instance Type: %s, Location: %s, Price per Hour: %s USD\n", instanceTypeAttr, location, priceUSD)
+					results = append(results, ultron.ComputeCost{
+						Unit:         &priceUnit,
+						Currency:     &priceCurrency,
+						PricePerUnit: &priceUSD32,
+					})
 				}
 			}
 		}
 	}
 
-	return nil
+	return &results, nil
 }
