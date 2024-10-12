@@ -7,6 +7,6 @@ type Config struct {
 	EmmaClientId         string
 	EmmaClientSecret     string
 	KubernetesConfigPath string
-	KubernetesMasterURL  string
+	KubernetesMasterUrl  string
 	CacheRefreshInterval int
 }

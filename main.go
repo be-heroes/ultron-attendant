@@ -3,21 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"math"
-	"net/http"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/cenkalti/backoff"
 	"go.uber.org/zap"
 
+	emma "github.com/be-heroes/ultron-attendant/internal/clients/emma"
 	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	algorithm "github.com/be-heroes/ultron/pkg/algorithm"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
-	emma "github.com/emma-community/emma-go-sdk"
 )
 
 func main() {
@@ -44,17 +41,15 @@ func main() {
 	cacheService := services.NewCacheService(nil, redisClient)
 	computeService := services.NewComputeService(algorithmInstance, cacheService, mapperInstance)
 	kubernetesClient, err := attendant.InitializeKubernetesServiceFromConfig(config)
+	emmaClient := emma.NewEmmaClient(config.EmmaClientId, config.EmmaClientSecret)
 	if err != nil {
 		sugar.Fatalw("Failed to initialize Kubernetes client", "error", err)
 	}
 
-	// TODO: Move to emma_client wrapper
-	emmaApiClient := emma.NewAPIClient(emma.NewConfiguration())
-
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	go startCacheRefreshLoop(ctx, sugar, emmaApiClient, config, cacheService, kubernetesClient, computeService, mapperInstance)
+	go startCacheRefreshLoop(ctx, sugar, emmaClient, config, cacheService, kubernetesClient, computeService, mapperInstance)
 
 	<-ctx.Done()
 
@@ -65,7 +60,7 @@ func main() {
 	sugar.Info("Ultron-attendant shut down gracefully")
 }
 
-func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
+func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaClient *emma.EmmaClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	for {
 		select {
 		case <-ctx.Done():
@@ -75,34 +70,32 @@ func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaA
 		default:
 			logger.Info("Refreshing cache")
 
-			refreshCache(ctx, logger, emmaApiClient, config, cacheService, kubernetesService, computeService, mapper)
+			refreshCache(ctx, logger, emmaClient, config, cacheService, kubernetesService, computeService, mapper)
 
 			time.Sleep(time.Duration(config.CacheRefreshInterval) * time.Minute)
 		}
 	}
 }
 
-func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
+func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *emma.EmmaClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	results := make(chan error, 3)
-	// TODO: Move to emma_client wrapper
-	emmaAuth := context.WithValue(ctx, emma.ContextAccessToken, getEmmaAccessToken(ctx, logger, emmaApiClient, config))
 
 	go func() {
-		_, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetVmConfigs(emmaAuth).Size(math.MaxInt32).Execute()
-		if err != nil || resp.StatusCode != http.StatusOK {
+		durableConfigs, err := emmaClient.GetDurableComputeConfigurations(ctx)
+		if err != nil {
 			results <- fmt.Errorf("failed to fetch durable configs: %v", err)
 		} else {
-			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, nil, 0) // Add the actual data
+			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, durableConfigs, 0)
 			results <- nil
 		}
 	}()
 
 	go func() {
-		_, resp, err := emmaApiClient.ComputeInstancesConfigurationsAPI.GetSpotConfigs(emmaAuth).Size(math.MaxInt32).Execute()
-		if err != nil || resp.StatusCode != http.StatusOK {
-			results <- fmt.Errorf("failed to fetch spot configs: %v", err)
+		ephemeralConfigs, err := emmaClient.GetEphemeralComputeConfigurations(ctx)
+		if err != nil {
+			results <- fmt.Errorf("failed to fetch ephemeral configs: %v", err)
 		} else {
-			cacheService.AddCacheItem(ultron.CacheKeySpotVmConfigurations, nil, 0) // Add the actual data
+			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, ephemeralConfigs, 0)
 			results <- nil
 		}
 	}()
@@ -110,7 +103,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	go func() {
 		nodes, err := kubernetesService.GetNodes(context.Background())
 		if err != nil {
-			results <- fmt.Errorf("failed to get nodes: %v", err)
+			results <- err
 		} else {
 			var wNodes []ultron.WeightedNode
 
@@ -166,30 +159,4 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient 
 	}
 
 	logger.Info("Cache refresh complete")
-}
-
-// TODO: Move to emma_client wrapper
-func getEmmaAccessToken(ctx context.Context, logger *zap.SugaredLogger, emmaApiClient *emma.APIClient, config *attendant.Config) string {
-	credentials := emma.Credentials{ClientId: config.EmmaClientId, ClientSecret: config.EmmaClientSecret}
-	var token string
-	var err error
-
-	operation := func() error {
-		tokenResp, _, err := emmaApiClient.AuthenticationAPI.IssueToken(ctx).Credentials(credentials).Execute()
-		if err != nil {
-			return err
-		}
-
-		token = tokenResp.GetAccessToken()
-
-		return nil
-	}
-
-	backoffStrategy := backoff.WithMaxRetries(backoff.NewExponentialBackOff(), 3)
-
-	if err = backoff.Retry(operation, backoffStrategy); err != nil {
-		logger.Fatalw("Failed to obtain Emma API access token", "error", err)
-	}
-
-	return token
 }
