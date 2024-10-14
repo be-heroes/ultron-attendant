@@ -31,7 +31,6 @@ func NewAwsClient(region string) (*AwsClient, error) {
 		return nil, err
 	}
 
-	//TODO: The Pricing service is available only in specific regions. Figure out if this is a problem.
 	pricingCfg, err := awsConfig.LoadDefaultConfig(context.TODO(), awsConfig.WithRegion("us-east-1"))
 	if err != nil {
 		return nil, err
@@ -93,7 +92,6 @@ func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region str
 				return nil, err
 			}
 
-			// TODO: Validate mapping logic
 			terms, ok := priceMap["terms"].(map[string]interface{})
 			if !ok {
 				continue
