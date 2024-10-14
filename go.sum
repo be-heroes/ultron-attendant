@@ -48,8 +48,8 @@ github.com/aws/aws-sdk-go-v2/service/sts v1.32.2 h1:CiS7i0+FUe+/YY1GvIBLLrR/XNGZ
 github.com/aws/aws-sdk-go-v2/service/sts v1.32.2/go.mod h1:HtaiBI8CjYoNVde8arShXb94UbQQi9L4EMr6D+xGBwo=
 github.com/aws/smithy-go v1.22.0 h1:uunKnWlcoL3zO7q+gG2Pk53joueEOsnNB28QdMsmiMM=
 github.com/aws/smithy-go v1.22.0/go.mod h1:irrKGvNn1InZwb2d7fkIRNucdfwR8R+Ts3wxYa/cJHg=
-github.com/be-heroes/ultron v0.3.0 h1:g1mc6qulvrKUfhJS7KjZoT62edIQ/mS1iY0dB8YkMTU=
-github.com/be-heroes/ultron v0.3.0/go.mod h1:gEY9X7m77bYaaPOttWuPD6XXX29yIdnW+gw9q4hDAJQ=
+github.com/be-heroes/ultron v0.3.2 h1:EcIhqOtHOR4Qbn2/nvoshCFMZ73qb21hswtQG1wy/a0=
+github.com/be-heroes/ultron v0.3.2/go.mod h1:gEY9X7m77bYaaPOttWuPD6XXX29yIdnW+gw9q4hDAJQ=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=
 github.com/bsm/ginkgo/v2 v2.12.0/go.mod h1:SwYbGRRDovPVboqFv0tPTcG1sN61LM1Z4ARdbAV9g4c=
 github.com/bsm/gomega v1.27.10 h1:yeMWxP2pV2fG3FgAODIY8EiRE3dy0aeFYt4l7wh6yKA=

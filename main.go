@@ -15,6 +15,8 @@ import (
 	algorithm "github.com/be-heroes/ultron/pkg/algorithm"
 	mapper "github.com/be-heroes/ultron/pkg/mapper"
 	services "github.com/be-heroes/ultron/pkg/services"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func main() {
@@ -85,7 +87,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *em
 		if err != nil {
 			results <- fmt.Errorf("failed to fetch durable configs: %v", err)
 		} else {
-			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, durableConfigs, 0)
+			cacheService.AddCacheItem(ultron.CacheKeyDurableComputeConfigurations, durableConfigs, 0)
 			results <- nil
 		}
 	}()
@@ -95,13 +97,13 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *em
 		if err != nil {
 			results <- fmt.Errorf("failed to fetch ephemeral configs: %v", err)
 		} else {
-			cacheService.AddCacheItem(ultron.CacheKeyDurableVmConfigurations, ephemeralConfigs, 0)
+			cacheService.AddCacheItem(ultron.CacheKeyEphemeralComputeConfigurations, ephemeralConfigs, 0)
 			results <- nil
 		}
 	}()
 
 	go func() {
-		nodes, err := kubernetesService.GetNodes(context.Background())
+		nodes, err := kubernetesService.GetNodes(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			results <- err
 		} else {

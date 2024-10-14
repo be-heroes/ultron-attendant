@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"cloud.google.com/go/bigquery"
+	attendant "github.com/be-heroes/ultron-attendant/pkg"
 	ultron "github.com/be-heroes/ultron/pkg"
 	"google.golang.org/api/cloudbilling/v1"
 	"google.golang.org/api/iterator"
@@ -23,9 +24,9 @@ type GcpClient struct {
 }
 
 func NewGcpClient() (*GcpClient, error) {
-	credentials := os.Getenv("GOOGLE_APPLICATION_CREDENTIALS")
+	credentials := os.Getenv(attendant.EnvGoogleCredentials)
 	if credentials == "" {
-		return nil, fmt.Errorf("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set")
+		return nil, fmt.Errorf("%s environment variable is not set", attendant.EnvGoogleCredentials)
 	}
 
 	ctx := context.Background()
