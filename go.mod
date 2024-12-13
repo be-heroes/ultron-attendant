@@ -10,7 +10,7 @@ require (
 	github.com/be-heroes/ultron v0.4.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/emma-community/emma-go-sdk v0.0.3
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/api v0.200.0
 	k8s.io/apimachinery v0.31.1
@@ -72,6 +72,7 @@ require (
 	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/wispcompute/wisp-go-sdk v0.0.0-20241213021450-89dc15b7cae1 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
