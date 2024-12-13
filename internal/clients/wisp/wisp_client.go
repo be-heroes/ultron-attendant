@@ -13,7 +13,7 @@ type WispClient struct {
 	clientSecret string
 }
 
-func NewEmmaClient(clientId string, clientSecret string) *WispClient {
+func NewWispClient(clientId string, clientSecret string) *WispClient {
 	return &WispClient{
 		client:       wisp.NewAPIClient(wisp.NewConfiguration()),
 		clientId:     clientId,
