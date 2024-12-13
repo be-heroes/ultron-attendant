@@ -1,4 +1,4 @@
-package emma
+package wisp
 
 import (
 	wisp "github.com/wispcompute/wisp-go-sdk"
