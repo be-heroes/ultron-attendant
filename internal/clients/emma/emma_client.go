@@ -12,9 +12,9 @@ import (
 )
 
 type IEmmaClient interface {
-	GetAllComputeConfigurations(ctx context.Context) (*[]ultron.ComputeCost, error)
-	GetDurableComputeConfigurations(ctx context.Context) (*[]ultron.ComputeCost, error)
-	GetEphemeralComputeConfigurations(ctx context.Context) (*[]ultron.ComputeCost, error)
+	GetAllComputeConfigurations(ctx context.Context) (*[]ultron.ComputeConfiguration, error)
+	GetDurableComputeConfigurations(ctx context.Context) (*[]ultron.ComputeConfiguration, error)
+	GetEphemeralComputeConfigurations(ctx context.Context) (*[]ultron.ComputeConfiguration, error)
 }
 
 type EmmaClient struct {
@@ -68,7 +68,7 @@ func (ec *EmmaClient) GetDurableComputeConfigurations(ctx context.Context) (*[]u
 	var result []ultron.ComputeConfiguration
 
 	for _, config := range durableConfigs.Content {
-		result = append(result, ec.convertConfiguration(&config, ultron.ComputeTypeDurable))
+		result = append(result, ec.mapConfiguration(&config, ultron.ComputeTypeDurable))
 	}
 
 	return &result, nil
@@ -106,11 +106,11 @@ func (ec *EmmaClient) GetEphemeralComputeConfigurations(ctx context.Context) (*[
 	var result []ultron.ComputeConfiguration
 
 	for _, config := range durableConfigs.Content {
-		result = append(result, ec.convertConfiguration(&config, ultron.ComputeTypeDurable))
+		result = append(result, ec.mapConfiguration(&config, ultron.ComputeTypeDurable))
 	}
 
 	for _, config := range ephemeralConfigs.Content {
-		result = append(result, ec.convertConfiguration(&config, ultron.ComputeTypeEphemeral))
+		result = append(result, ec.mapConfiguration(&config, ultron.ComputeTypeEphemeral))
 	}
 
 	return &result, nil
@@ -141,7 +141,7 @@ func (ec *EmmaClient) getAccessToken(ctx context.Context) (string, error) {
 	return token, nil
 }
 
-func (ec *EmmaClient) convertConfiguration(config *emma.VmConfiguration, computeType ultron.ComputeType) ultron.ComputeConfiguration {
+func (ec *EmmaClient) mapConfiguration(config *emma.VmConfiguration, computeType ultron.ComputeType) ultron.ComputeConfiguration {
 	return ultron.ComputeConfiguration{
 		Id:                config.Id,
 		ProviderId:        config.ProviderId,
