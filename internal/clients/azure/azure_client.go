@@ -43,6 +43,7 @@ type IAzureClient interface {
 	GetComputeCost(ctx context.Context, filter string) (*[]ultron.ComputeCost, error)
 }
 
+// TODO: Refactor client to return compute configs, rather then compute costs and adhere to the same interface as the emma & wisp clients
 type AzureClient struct {
 	httpClient *http.Client
 	baseUrl    string

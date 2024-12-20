@@ -28,12 +28,13 @@ func NewWispClient(clientId string, clientSecret string) *WispClient {
 }
 
 func (wc *WispClient) GetAllComputeConfigurations(ctx context.Context) (*[]ultron.ComputeConfiguration, error) {
-	// TODO: We probably need some args for this call
+	// TODO: We probably need some args to map to our ConstrainRequest
 	// TODO: Fetch and configure bearer token (initally it is handrolled via their portal, until we can setup a STS)
-	constraints, _, err := wc.client.ConstraintsApi.ConstraintsCreate(ctx).Execute()
+	constrainRequest := wisp.ConstrainRequest{}
+	constrainResponse, _, err := wc.client.ConstraintsApi.ConstraintsCreate(ctx).ConstrainRequest(constrainRequest).Execute()
 	results := []ultron.ComputeConfiguration{}
 
-	for _, choice := range constraints.GetChoice() {
+	for _, choice := range constrainResponse.GetChoice() {
 		var computeType ultron.ComputeType
 
 		if *choice.UseSpot.Get() {

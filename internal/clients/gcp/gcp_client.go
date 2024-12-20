@@ -17,6 +17,7 @@ type IGcpClient interface {
 	GetComputeCost(ctx context.Context, projectId string) (*[]ultron.ComputeCost, error)
 }
 
+// TODO: Refactor client to return compute configs, rather then compute costs and adhere to the same interface as the emma & wisp clients
 type GcpClient struct {
 	credentials string
 	billingSvc  *cloudbilling.APIService
