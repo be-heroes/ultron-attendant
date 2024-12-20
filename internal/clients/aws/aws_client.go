@@ -20,7 +20,7 @@ type IPricingAPI interface {
 	GetProducts(ctx context.Context, params *pricing.GetProductsInput, optFns ...func(*pricing.Options)) (*pricing.GetProductsOutput, error)
 }
 
-// TODO: Refactor client to return compute configs, rather then compute costs and adhere to the same interface as the emma & wisp clients
+// TODO: Refactor client to return compute configs, as well as compute costs and adhere to the same interface as the emma & wisp clients
 type AwsClient struct {
 	config        aws.Config
 	PricingClient IPricingAPI
