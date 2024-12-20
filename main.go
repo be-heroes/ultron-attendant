@@ -121,7 +121,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *em
 				}
 
 				if computeConfiguration != nil && computeConfiguration.Cost != nil && computeConfiguration.Cost.PricePerUnit != nil {
-					wNode.Price = float64(*computeConfiguration.Cost.PricePerUnit)
+					wNode.Weights[ultron.WeightKeyPrice] = float64(*computeConfiguration.Cost.PricePerUnit)
 				}
 
 				medianPrice, err := computeService.CalculateWeightedNodeMedianPrice(&wNode)
@@ -129,7 +129,7 @@ func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *em
 					results <- fmt.Errorf("failed to calculate median price: %v", err)
 				}
 
-				wNode.MedianPrice = medianPrice
+				wNode.Weights[ultron.WeightKeyPriceMedian] = medianPrice
 
 				interuptionRate, err := computeService.GetInteruptionRateForWeightedNode(&wNode)
 				if err != nil {

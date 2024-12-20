@@ -127,14 +127,13 @@ func (c *AwsClient) GetComputeCost(ctx context.Context, instanceType, region str
 					if err != nil {
 						return nil, err
 					}
-					priceUSD32 := float32(priceUSDValue)
 					priceCurrency := "USD"
 					priceUnit := "MONTHLY"
 
 					results = append(results, ultron.ComputeCost{
 						Unit:         &priceUnit,
 						Currency:     &priceCurrency,
-						PricePerUnit: &priceUSD32,
+						PricePerUnit: &priceUSDValue,
 					})
 				}
 			}

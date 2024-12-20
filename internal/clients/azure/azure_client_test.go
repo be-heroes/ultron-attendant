@@ -136,12 +136,12 @@ func TestGetComputeCostWithPagination(t *testing.T) {
 		{
 			Currency:     &firstPageResponse.Items[0].CurrencyCode,
 			Unit:         &firstPageResponse.Items[0].UnitOfMeasure,
-			PricePerUnit: func(f float64) *float32 { v := float32(f); return &v }(firstPageResponse.Items[0].UnitPrice),
+			PricePerUnit: func(f float64) *float64 { v := float64(f); return &v }(firstPageResponse.Items[0].UnitPrice),
 		},
 		{
 			Currency:     &secondPageResponse.Items[0].CurrencyCode,
 			Unit:         &secondPageResponse.Items[0].UnitOfMeasure,
-			PricePerUnit: func(f float64) *float32 { v := float32(f); return &v }(secondPageResponse.Items[0].UnitPrice),
+			PricePerUnit: func(f float64) *float64 { v := float64(f); return &v }(secondPageResponse.Items[0].UnitPrice),
 		},
 	}
 

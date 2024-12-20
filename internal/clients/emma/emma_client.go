@@ -143,27 +143,53 @@ func (ec *EmmaClient) getAccessToken(ctx context.Context) (string, error) {
 
 func (ec *EmmaClient) mapConfiguration(config *emma.VmConfiguration, computeType ultron.ComputeType) ultron.ComputeConfiguration {
 	return ultron.ComputeConfiguration{
-		Id:                config.Id,
-		ProviderId:        config.ProviderId,
-		ProviderName:      config.ProviderName,
-		LocationId:        config.LocationId,
-		LocationName:      config.LocationName,
-		DataCenterId:      config.DataCenterId,
-		DataCenterName:    config.DataCenterName,
-		OsId:              config.OsId,
+		Identifier:        toStringPointer(config.Id),
+		Provider:          config.ProviderName,
+		Location:          config.LocationName,
+		DataCenter:        config.DataCenterName,
 		OsType:            config.OsType,
 		OsVersion:         config.OsVersion,
 		CloudNetworkTypes: config.CloudNetworkTypes,
 		VCpuType:          config.VCpuType,
-		VCpu:              config.VCpu,
-		RamGb:             config.RamGb,
-		VolumeGb:          config.VolumeGb,
+		VCpu:              toInt64Pointer(config.VCpu),
+		RamGb:             toInt64Pointer(config.RamGb),
+		VolumeGb:          toInt64Pointer(config.VolumeGb),
 		VolumeType:        config.VolumeType,
 		Cost: &ultron.ComputeCost{
 			Unit:         config.Cost.Unit,
 			Currency:     config.Cost.Currency,
-			PricePerUnit: config.Cost.PricePerUnit,
+			PricePerUnit: toFloat64Pointer(config.Cost.PricePerUnit),
 		},
 		ComputeType: computeType,
 	}
+}
+
+func toStringPointer(value *int32) *string {
+	if value == nil {
+		return nil
+	}
+
+	v := string(*value)
+
+	return &v
+}
+
+func toInt64Pointer(value *int32) *int64 {
+	if value == nil {
+		return nil
+	}
+
+	v := int64(*value)
+
+	return &v
+}
+
+func toFloat64Pointer(value *float32) *float64 {
+	if value == nil {
+		return nil
+	}
+
+	v := float64(*value)
+
+	return &v
 }

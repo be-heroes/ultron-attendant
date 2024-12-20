@@ -99,7 +99,7 @@ func (c *AzureClient) GetComputeCost(ctx context.Context, filter string) (*[]ult
 			allItems = append(allItems, ultron.ComputeCost{
 				Currency:     &item.CurrencyCode,
 				Unit:         &item.UnitOfMeasure,
-				PricePerUnit: func(f float64) *float32 { v := float32(f); return &v }(item.UnitPrice),
+				PricePerUnit: func(f float64) *float64 { v := float64(f); return &v }(item.UnitPrice),
 			})
 		}
 

@@ -92,28 +92,24 @@ func (ec *WispClient) mapConfiguration(clusterOffer *wisp.ClusterOffer, computeT
 	provider := clusterOffer.Cloud.Get()
 	location := "unknown"
 
-	// TODO: Talk with Elias about how this payload is formatted
 	strArray, ok := clusterOffer.Regions.([]string)
 	if ok {
 		location = strArray[0]
 	}
 
-	// TODO: Change Ultron ComputeConfiguration type to use int64 instead of int32
-	cpuCount := int32(*clusterOffer.Cpus.Get())
-	diskSize := int32(*clusterOffer.DiskSize.Get())
-	memorySize := int32(*clusterOffer.Memory.Get())
-
-	// TODO: Change Ultron ComputeConfiguration type to use float64 instead of float32
-	price := float32(*clusterOffer.Price.Get())
+	cpuCount := int64(*clusterOffer.Cpus.Get())
+	diskSize := int64(*clusterOffer.DiskSize.Get())
+	memorySize := int64(*clusterOffer.Memory.Get())
+	price := float64(*clusterOffer.Price.Get())
 	priceUnit := "HOURS"
 	priceCurrency := "USD"
 
 	return ultron.ComputeConfiguration{
-		ProviderName: provider,
-		LocationName: &location,
-		VCpu:         &cpuCount,
-		RamGb:        &memorySize,
-		VolumeGb:     &diskSize,
+		Provider: provider,
+		Location: &location,
+		VCpu:     &cpuCount,
+		RamGb:    &memorySize,
+		VolumeGb: &diskSize,
 		Cost: &ultron.ComputeCost{
 			Unit:         &priceUnit,
 			Currency:     &priceCurrency,

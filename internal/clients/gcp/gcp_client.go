@@ -102,7 +102,7 @@ func (g *GcpClient) GetComputeCost(ctx context.Context, projectId string) (*[]ul
 		computeCost := ultron.ComputeCost{
 			Unit:         &usageUnit,
 			Currency:     &currency,
-			PricePerUnit: func(f float64) *float32 { v := float32(f); return &v }(cost),
+			PricePerUnit: func(f float64) *float64 { v := float64(f); return &v }(cost),
 		}
 
 		computeCosts = append(computeCosts, computeCost)
