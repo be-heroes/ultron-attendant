@@ -72,14 +72,14 @@ func startCacheRefreshLoop(ctx context.Context, logger *zap.SugaredLogger, emmaC
 		default:
 			logger.Info("Refreshing cache")
 
-			refreshCache(ctx, logger, emmaClient, config, cacheService, kubernetesService, computeService, mapper)
+			refreshCache(ctx, logger, emmaClient, cacheService, kubernetesService, computeService, mapper)
 
 			time.Sleep(time.Duration(config.CacheRefreshInterval) * time.Minute)
 		}
 	}
 }
 
-func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *emma.EmmaClient, config *attendant.Config, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
+func refreshCache(ctx context.Context, logger *zap.SugaredLogger, emmaClient *emma.EmmaClient, cacheService services.ICacheService, kubernetesService services.IKubernetesService, computeService services.IComputeService, mapper mapper.IMapper) {
 	results := make(chan error, 3)
 
 	go func() {

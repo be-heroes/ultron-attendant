@@ -7,10 +7,11 @@ require (
 	github.com/aws/aws-sdk-go-v2 v1.32.2
 	github.com/aws/aws-sdk-go-v2/config v1.27.43
 	github.com/aws/aws-sdk-go-v2/service/pricing v1.32.2
-	github.com/be-heroes/ultron v0.5.1
+	github.com/be-heroes/ultron v0.5.5
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/emma-community/emma-go-sdk v0.0.3
 	github.com/stretchr/testify v1.10.0
+	github.com/wispcompute/wisp-go-sdk v0.0.3
 	go.uber.org/zap v1.27.0
 	google.golang.org/api v0.200.0
 	k8s.io/apimachinery v0.31.1
@@ -72,7 +73,6 @@ require (
 	github.com/redis/go-redis/v9 v9.6.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
-	github.com/wispcompute/wisp-go-sdk v0.0.3 // indirect
 	github.com/x448/float16 v0.8.4 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.opencensus.io v0.24.0 // indirect
